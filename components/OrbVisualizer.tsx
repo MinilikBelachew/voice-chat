@@ -10,7 +10,7 @@ interface OrbVisualizerProps {
 
 export function OrbVisualizer({ isActive, isSpeaking }: OrbVisualizerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animationRef = useRef<number>();
+  const animationRef = useRef<number>(null);
   const timeRef = useRef(0);
   const { theme, resolvedTheme } = useTheme();
 

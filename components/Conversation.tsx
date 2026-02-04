@@ -1,51 +1,15 @@
 "use client";
 
 import { useConversation } from "@elevenlabs/react";
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
 import { Mic, Square } from "lucide-react";
 import { OrbVisualizer } from "./OrbVisualizer";
-import { Transcript, Message } from "./Transcript";
-import { PersonaSelector, Persona } from "./PersonaSelector";
-import { LanguageSelector, LanguageCode } from "./LanguageSelector";
-
-const PERSONA_PROMPTS = {
-  professional: "You are a highly professional, efficient, and direct AI assistant. Provide concise and accurate information.",
-  friendly: "You are a warm, helpful, and friendly AI companion. Use a casual and supportive tone.",
-  funny: "You are a witty, playful AI with a great sense of humor. Feel free to use jokes and lighthearted banter.",
-};
 
 export function Conversation() {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [persona, setPersona] = useState<Persona>("professional");
-  const [language, setLanguage] = useState<LanguageCode>("en");
-
   const conversation = useConversation({
     onConnect: () => console.log("Connected"),
-    onDisconnect: () => {
-      console.log("Disconnected");
-    },
-    onMessage: (message) => {
-      console.log("Message:", message);
-      if (message.message) {
-        setMessages((prev) => {
-          // If the last message is the same role and same content, ignore (simple debounce)
-          if (prev.length > 0) {
-            const last = prev[prev.length - 1];
-            if (last.role === (message.source === "user" ? "user" : "ai") && last.text === message.message) {
-              return prev;
-            }
-          }
-          return [
-            ...prev,
-            {
-              role: message.source === "user" ? "user" : "ai",
-              text: message.message,
-              id: `${Date.now()}-${Math.random().toString(36).substring(7)}`,
-            },
-          ];
-        });
-      }
-    },
+    onDisconnect: () => console.log("Disconnected"),
+    onMessage: (message) => console.log("Message:", message),
     onError: (error) => console.error("Error:", error),
   });
 
@@ -53,11 +17,6 @@ export function Conversation() {
 
   const startConversation = useCallback(async () => {
     try {
-      console.log("🔵 Starting conversation...", { status, persona, language });
-      
-      // Clear messages before starting
-      setMessages([]);
-      
       const response = await fetch("/api/get-signed-url");
       const { signedUrl } = await response.json();
 
@@ -65,21 +24,11 @@ export function Conversation() {
         throw new Error("Failed to get signed URL");
       }
 
-      console.log("🔵 Got signed URL, starting session...");
-
-      // Keep minimal config - overrides cause disconnection
-      await conversation.startSession({ 
-        signedUrl,
-      });
-      
-      console.log("✅ Session started successfully");
+      await conversation.startSession({ signedUrl });
     } catch (error) {
-      console.error("❌ Failed to start conversation:", error);
-      if (error instanceof Error) {
-        console.error("Error details:", error.message, error.stack);
-      }
+      console.error("Failed to start conversation:", error);
     }
-  }, [conversation, persona, language, status]);
+  }, [conversation]);
 
   const stopConversation = useCallback(async () => {
     await conversation.endSession();
@@ -89,23 +38,9 @@ export function Conversation() {
   const isConnecting = status === "connecting";
 
   return (
-    <div className="flex flex-col items-center w-full max-w-lg">
-      {/* Selection Section - Only show when not connected */}
-      <div className={`flex flex-col items-center gap-2 transition-all duration-700 ${isConnected ? 'opacity-0 -translate-y-4 pointer-events-none absolute' : 'opacity-100 translate-y-0'}`}>
-        <PersonaSelector 
-          selected={persona} 
-          onSelect={setPersona} 
-          disabled={isConnecting}
-        />
-        <LanguageSelector
-          selected={language}
-          onSelect={setLanguage}
-          disabled={isConnecting}
-        />
-      </div>
-
+    <div className="flex flex-col items-center gap-10">
       {/* Orb Section */}
-      <div className={`flex flex-col items-center gap-6 transition-all duration-700 ${isConnected ? 'mt-0' : 'mt-4'}`}>
+      <div className="flex flex-col items-center gap-8">
         {/* Orb Container */}
         <div className="relative flex items-center justify-center transform hover:scale-[1.02] transition-transform duration-500">
           {/* Canvas Orb */}
@@ -139,18 +74,15 @@ export function Conversation() {
           )}
         </div>
 
-        {/* Status Text */}
+        {/* Status Text - Ultra Minimal */}
         <div className="text-center h-8">
-          <p className="text-sm font-light tracking-[0.1em] text-foreground/70 dark:text-foreground/50 transition-all duration-500 animate-in fade-in slide-in-from-bottom-2">
-            {isConnecting && "Initializing sequence..."}
-            {isConnected && (isSpeaking ? "AI is speaking" : "I'm listening")}
-            {!isConnected && !isConnecting && "Tap the orb to begin"}
+          <p className="text-sm font-light tracking-[0.2em] text-foreground/60 dark:text-foreground/40 transition-all duration-500 animate-in fade-in slide-in-from-bottom-2 uppercase">
+            {isConnecting && "Initializing..."}
+            {isConnected && (isSpeaking ? "AI Speaking" : "Listening")}
+            {!isConnected && !isConnecting && "Tap to start"}
           </p>
         </div>
       </div>
-
-      {/* Transcript Section */}
-      <Transcript messages={messages} />
     </div>
   );
 }

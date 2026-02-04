@@ -9,7 +9,7 @@ interface WaveformVisualizerProps {
 
 export function WaveformVisualizer({ isSpeaking }: WaveformVisualizerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animationRef = useRef<number>();
+  const animationRef = useRef<number>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;

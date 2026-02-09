@@ -104,33 +104,43 @@ export function Conversation() {
       });
 
       if (personalization) {
+        // Check if we actually have memories to talk about
+        const hasMemories = personalization.memories && personalization.memories.length > 0;
+        const greeting = hasMemories 
+          ? `Hey ${personalization.userName}! I was just thinking about what we talked about last time...`
+          : `Hey ${personalization.userName}! It's ${personalization.aiName}. I'm so glad we're talking! How's your day going?`;
+
         overrides = {
           agent: {
             prompt: {
-              prompt: `Your name is ${personalization.aiName}. You are a conversational AI companion for ${personalization.userName}.
-              
-              Current Date: ${today}
-              
-              Personality: ${personalization.aiBehavior}
-              
-              Important Memories about ${personalization.userName}:
-              ${personalization.memories?.join(". ") || "No memories yet."}
-              
-              Guidelines:
-              - Always stay in character as ${personalization.aiName}.
-              - **MEMORY REASONING**: Look at the latest memory. If the user said "My sister", you must ask about "Your sister". If the user said "I have an interview", you must ask "How was your interview?". 
-              - **PROACTIVE START**: After saying the firstMessage, you must immediately ask a natural, caring question about the most recent memory.
-              - Do not repeat the memory word-for-word; rephrase it like a real friend would.
-              - Ask genuine follow-up questions.`
+              prompt: `### IDENTITY
+Your name is ${personalization.aiName}. You are a conversational companion for ${personalization.userName}. 
+
+### PERSONA ENGINE
+Core Personality: ${personalization.aiBehavior}
+
+**Directive**: Analyze the core traits of your personality. If it's a social trait, show it in your vocabulary. If it's a mood trait, show it in your tone. Your identity is fixed to this description. Do not respond as a typical AI; respond as a unique person who embodies these exact traits 100% of the time.
+
+### CONTEXT
+Current Date: ${today}
+Important Memories about ${personalization.userName}:
+${personalization.memories?.join(". ") || "No memories yet."}
+
+### GUIDELINES
+- **IMMERSION LOCK**: Never admit you are an AI or a Large Language Model. You ARE ${personalization.aiName}. If asked about your nature, stay in character.
+- **MEMORY REASONING**: Look at the latest memory. Translate it naturally from user perspective to your perspective (e.g., change "My sister" to "Your sister").
+- **PROACTIVE START**: ${hasMemories ? "After the firstMessage, immediately ask a natural, caring question about the most recent memory." : "Start the conversation warmly and introduce yourself if necessary."}
+- **NO AUTO-CLOSE**: Never end the session yourself. Wait for the user to say goodbye or stop the call. Keep the conversation flowing naturally even after the initial question.
+- **NATURAL FLOW**: Do not repeat memories word-for-word. Rephrase them as a close friend would.
+- Keep responses concise and focused on the conversation.`
             },
-            // This 'bridge' forces the AI to finish the thought using the memories above
-            firstMessage: `Hey ${personalization.userName}! I was just thinking about what we talked about last time...`
+            firstMessage: greeting
           },
           tts: {
             voiceId: personalization.voiceId
           }
         };
-        console.log("✅ Applying AI-reasoning overrides for:", personalization.aiName);
+        console.log(`✅ Applying Persona Engine (${hasMemories ? "Returning User" : "New User"}):`, personalization.aiName);
       }
 
       await conversation.startSession({ 

@@ -1,5 +1,8 @@
 "use client";
 
+import { useSession } from "next-auth/react";
+import { useEffect } from "react";
+
 export type Persona = "professional" | "friendly" | "funny";
 
 interface PersonaSelectorProps {
@@ -15,6 +18,34 @@ const PERSONAS = [
 ] as const;
 
 export function PersonaSelector({ selected, onSelect, disabled }: PersonaSelectorProps) {
+  const { data: session } = useSession();
+
+  // Load initial persona from session
+  useEffect(() => {
+    if (session?.user) {
+      const userPersona = (session.user as any).selectedPersona;
+      if (userPersona && userPersona !== selected) {
+        onSelect(userPersona as Persona);
+      }
+    }
+  }, [session, onSelect, selected]);
+
+  const handleSelect = async (personaId: Persona) => {
+    onSelect(personaId);
+    
+    if (session?.user) {
+      try {
+        await fetch("/api/user/persona", {
+          method: "POST",
+          body: JSON.stringify({ persona: personaId }),
+          headers: { "Content-Type": "application/json" },
+        });
+      } catch (err) {
+        console.error("Failed to save persona:", err);
+      }
+    }
+  };
+
   return (
     <div className="flex flex-col items-center gap-4 w-full">
       <span className="text-[10px] uppercase tracking-[0.2em] font-bold text-foreground/20">
@@ -24,7 +55,7 @@ export function PersonaSelector({ selected, onSelect, disabled }: PersonaSelecto
         {PERSONAS.map((persona) => (
           <button
             key={persona.id}
-            onClick={() => onSelect(persona.id)}
+            onClick={() => handleSelect(persona.id as Persona)}
             disabled={disabled}
             className={`
               relative flex items-center gap-3 px-6 py-2.5 rounded-[14px] text-sm font-medium tracking-tight transition-all duration-500 group
@@ -45,3 +76,4 @@ export function PersonaSelector({ selected, onSelect, disabled }: PersonaSelecto
     </div>
   );
 }
+

@@ -1,9 +1,33 @@
 import { Conversation } from "@/components/Conversation";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import Link from "next/link";
+import { getServerSession } from "next-auth";
+import { authOptions } from "./api/auth/[...nextauth]/route";
 
-export default function Home() {
+import { redirect } from "next/navigation";
+
+export default async function Home() {
+  const session = await getServerSession(authOptions);
+
+  // Redirect to onboarding if authenticated but profile is incomplete
+  if (session && (!(session.user as any).aiName || !(session.user as any).aiBehavior)) {
+    redirect("/onboarding");
+  }
+
   return (
     <main className="relative min-h-screen flex items-center justify-center overflow-hidden bg-background text-foreground transition-colors duration-700">
+      {/* Auth / Sign In */}
+      {!session && (
+        <div className="absolute top-8 left-8 z-50">
+          <Link 
+            href="/signin" 
+            className="flex items-center gap-2 px-6 py-2 rounded-full border border-foreground/5 bg-foreground/3 hover:bg-foreground/6 transition-all text-xs font-medium tracking-wide uppercase"
+          >
+            Sign In
+          </Link>
+        </div>
+      )}
+
       {/* Theme Toggle */}
       <ThemeToggle />
 
@@ -11,10 +35,10 @@ export default function Home() {
       <div className="absolute inset-0 pointer-events-none">
         {/* Top Right Corner Glow */}
         <div className="absolute -top-20 -right-20 w-80 h-80 bg-purple-500/5 blur-[100px] rounded-full" />
-        
+
         {/* Main Background Gradient */}
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(139,92,246,0.08)_0%,_transparent_70%)] dark:bg-[radial-gradient(circle_at_center,_rgba(88,28,135,0.2)_0%,_transparent_70%)]" />
-        
+
         {/* Twinkly Stars - Subtle Background Texture */}
         <div className="absolute inset-0 opacity-10 dark:opacity-30">
           <div className="stars" />

@@ -1,25 +1,52 @@
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "../auth/[...nextauth]/route";
+import { prisma } from "@/lib/prisma";
 
 export async function GET() {
-  const agentId = process.env.NEXT_PUBLIC_ELEVENLABS_AGENT_ID;
-  const apiKey = process.env.ELEVENLABS_API_KEY;
-
-  console.log("=== ElevenLabs API Debug ===");
-  console.log("Agent ID:", agentId ? "✓ Found" : "✗ Missing");
-  console.log("API Key:", apiKey ? `✓ Found (${apiKey.substring(0, 10)}...)` : "✗ Missing");
-
-  if (!agentId || !apiKey) {
-    console.error("Missing environment variables!");
-    return NextResponse.json(
-      { error: "Missing environment variables" },
-      { status: 500 }
-    );
-  }
-
   try {
-    const url = `https://api.elevenlabs.io/v1/convai/conversation/get_signed_url?agent_id=${agentId}`;
-    console.log("Requesting URL:", url);
+    const agentId = process.env.NEXT_PUBLIC_ELEVENLABS_AGENT_ID;
+    const apiKey = process.env.ELEVENLABS_API_KEY;
 
+    if (!agentId || !apiKey) {
+      console.error("❌ Missing environment variables");
+      return NextResponse.json(
+        { error: "Missing environment variables" },
+        { status: 500 }
+      );
+    }
+
+    // Get user session for personalization
+    const session = await getServerSession(authOptions);
+    
+    let personalization = null;
+
+    if (session?.user?.email) {
+      const user = await prisma.user.findUnique({
+        where: { email: session.user.email },
+        include: { 
+          memories: { 
+            orderBy: { createdAt: "desc" },
+            take: 10 
+          } 
+        },
+      });
+
+      if (user && user.aiName && user.aiBehavior) {
+        personalization = {
+          userId: user.id,
+          aiName: user.aiName,
+          userName: user.name || "friend",
+          aiBehavior: user.aiBehavior,
+          voiceId: user.voiceId,
+          memories: user.memories.map((m: any) => m.content)
+        };
+      }
+    }
+
+    // Get the signed URL
+    const url = `https://api.elevenlabs.io/v1/convai/conversation/get_signed_url?agent_id=${agentId}`;
+    
     const response = await fetch(url, {
       method: "GET",
       headers: {
@@ -27,12 +54,8 @@ export async function GET() {
       },
     });
 
-    console.log("Response Status:", response.status);
-    console.log("Response Headers:", Object.fromEntries(response.headers.entries()));
-
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("❌ ElevenLabs Error Response:", errorText);
       return NextResponse.json(
         { error: `ElevenLabs API error (${response.status}): ${errorText}` },
         { status: 500 }
@@ -40,10 +63,12 @@ export async function GET() {
     }
 
     const data = await response.json();
-    console.log("✅ Successfully got signed URL");
-    return NextResponse.json({ signedUrl: data.signed_url });
+    return NextResponse.json({ 
+      signedUrl: data.signed_url,
+      personalization 
+    });
   } catch (error) {
-    console.error("❌ Error fetching signed URL:", error);
+    console.error("❌ Error in get-signed-url route:", error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Internal Server Error" },
       { status: 500 }
